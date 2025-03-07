@@ -761,6 +761,62 @@ export default function DataDisplay() {
     }
   };
 
+  const filteredGrid = useMemo(() => {
+    let filtered =
+      selectedInterval === 'All'
+        ? grid
+        : selectedInterval === 'Peak'
+        ? grid.filter((row) => {
+            const hour = parseInt(row.HE);
+            return hour >= 8 && hour <= 23;
+          })
+        : selectedInterval === 'Off Peak'
+        ? grid.filter((row) => {
+            const hour = parseInt(row.HE);
+            return hour <= 7 || hour === 24;
+          })
+        : grid.filter((row) => parseInt(row.HE) === parseInt(selectedInterval));
+  
+    // Ensure every row conforms to `GridItem` type
+    const rows = filtered.map((row) => ({
+      HE: row.HE ?? '1', // Ensure HE is always set
+      '0': row['0'] ?? null,
+      '5': row['5'] ?? null,
+      '10': row['10'] ?? null,
+      '15': row['15'] ?? null,
+      '20': row['20'] ?? null,
+      '25': row['25'] ?? null,
+      '30': row['30'] ?? null,
+      '35': row['35'] ?? null,
+      '40': row['40'] ?? null,
+      '45': row['45'] ?? null,
+      '50': row['50'] ?? null,
+      '55': row['55'] ?? null,
+      RT: row.RT ?? null,
+      DA: row.DA ?? null,
+      'DA/RT': row['DA/RT'] ?? null,
+      Combo: row.RT !== null ? row.RT : row.DA, // Keeps original logic
+    })) as GridItem[];
+  
+    // Compute averages for the last row
+    const averages = gridColumns.reduce((acc, col) => {
+      const values = rows
+        .map((row) => row[col as keyof GridItem])
+        .filter((val) => val !== null) as number[];
+      acc[col] =
+        values.length > 0
+          ? Number(
+              (
+                values.reduce((sum, val) => sum + val, 0) / values.length
+              ).toFixed(2)
+            )
+          : null;
+      return acc;
+    }, {} as Record<string, number | null>);
+  
+    return [...rows, { HE: 'Avg', ...averages }];
+  }, [grid, selectedInterval]);
+
   useEffect(() => {
     let isInitialLoad = true;
   
@@ -813,48 +869,17 @@ export default function DataDisplay() {
     // Poll every 15 seconds
     const intervalId = setInterval(loadData, 15000);
   
-    // Cleanup
+    // Ensure `selectedHE` always defaults to `currentHE` unless manually set
+    if (!selectedHE || !filteredGrid.some((row) => parseInt(row.HE) === selectedHE)) {
+      const latestHE =
+        filteredGrid.length > 0 ? getCurrentHE(filteredGrid as GridItem[]) : 1;
+      setSelectedHE(latestHE);
+    }
+  
+    // Cleanup interval on unmount
     return () => clearInterval(intervalId);
-  }, [selectedHub, gridDate]);
+  }, [selectedHub, gridDate, selectedInterval, filteredGrid]); // Removed dependency on selectedMinute
 
-  const filteredGrid = useMemo(() => {
-    let filtered =
-      selectedInterval === 'All'
-        ? grid
-        : selectedInterval === 'Peak'
-        ? grid.filter((row) => {
-            const hour = parseInt(row.HE);
-            return hour >= 8 && hour <= 23;
-          })
-        : selectedInterval === 'Off Peak'
-        ? grid.filter((row) => {
-            const hour = parseInt(row.HE);
-            return hour <= 7 || hour === 24;
-          })
-        : grid.filter((row) => parseInt(row.HE) === parseInt(selectedInterval));
-
-    const rows = filtered.map((row) => ({
-      ...row,
-      Combo: row.RT !== null ? row.RT : row.DA,
-    }));
-
-    const averages = gridColumns.reduce((acc, col) => {
-      const values = rows
-        .map((row) => row[col as keyof GridItem])
-        .filter((val) => val !== null) as number[];
-      acc[col] =
-        values.length > 0
-          ? Number(
-              (
-                values.reduce((sum, val) => sum + val, 0) / values.length
-              ).toFixed(2)
-            )
-          : null;
-      return acc;
-    }, {} as Record<string, number | null>);
-
-    return [...rows, { HE: 'Avg', ...averages }];
-  }, [grid, selectedInterval]);
 
   const currentHEData = useMemo(() => {
     const rowToUse = selectedHE
