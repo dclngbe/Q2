@@ -628,12 +628,12 @@ export default function DataDisplay() {
   }
 
   const fetchAndUpdateLedger = async () => {
-    console.time('fetchAndUpdateLedger');       // Start total function timer
+    console.time('fetchAndUpdateLedger'); // Start total function timer
   
     try {
-      console.time('Ledger Data Fetch');        // Start fetch timer
+      console.time('Ledger Data Fetch');  // Start fetch timer
       const ledgerData = await fetchLedgerData();
-      console.timeEnd('Ledger Data Fetch');     // End fetch timer
+      console.timeEnd('Ledger Data Fetch'); // End fetch timer
   
       if (ledgerData.length > 0 && ledgerData[0].timestamp) {
         // Only update if we have a new timestamp
@@ -649,24 +649,26 @@ export default function DataDisplay() {
             (a, b) => a.Dispatch - b.Dispatch
           );
   
-          // 3) Update state
-          setLedger(sortedLedgerData);
+          // 3) **Only set state if it changed**
+          if (JSON.stringify(ledger) !== JSON.stringify(sortedLedgerData)) {
+            setLedger(sortedLedgerData);
+          }
         }
       }
     } catch (err) {
       console.error('Error fetching ledger data:', err);
     } finally {
-      console.timeEnd('fetchAndUpdateLedger');  // End total function timer
+      console.timeEnd('fetchAndUpdateLedger'); // End total function timer
     }
   };
 
   const fetchAndUpdateGrid = async () => {
-    console.time('fetchAndUpdateGrid');        // Start total function timer
+    console.time('fetchAndUpdateGrid'); // Start total function timer
   
     try {
-      console.time('Grid Data Fetch');         // Start fetch timer
+      console.time('Grid Data Fetch');  // Start fetch timer
       const gridData = await fetchGridData(selectedHub, gridDate);
-      console.timeEnd('Grid Data Fetch');      // End fetch timer
+      console.timeEnd('Grid Data Fetch'); // End fetch timer
   
       // Compare only relevant data points
       const hasNewData =
@@ -696,14 +698,18 @@ export default function DataDisplay() {
       if (hasNewData) {
         const mergedData = mergeGridData(lastGridDataRef.current, gridData);
         lastGridDataRef.current = mergedData;
-        setGrid(mergedData);
-        setCurrentHE(getCurrentHE(mergedData));
+  
+        // **Only set state if it changed**
+        if (JSON.stringify(grid) !== JSON.stringify(mergedData)) {
+          setGrid(mergedData);
+          setCurrentHE(getCurrentHE(mergedData));
+        }
       }
     } catch (err) {
       console.error('Error fetching grid data:', err);
       setGridError('Failed to load grid data');
     } finally {
-      console.timeEnd('fetchAndUpdateGrid');   // End total function timer
+      console.timeEnd('fetchAndUpdateGrid'); // End total function timer
     }
   };
 
@@ -712,10 +718,10 @@ export default function DataDisplay() {
     heNumber?: number,
     minute?: number
   ) => {
-    console.time('fetchAndUpdateConstraints');  // Start total function timer
+    console.time('fetchAndUpdateConstraints'); // Start total function timer
   
     try {
-      console.time('Constraints Data Fetch');   // Start fetch timer
+      console.time('Constraints Data Fetch'); // Start fetch timer
       const newConstraintsData = await fetchConstraints(dateStr, heNumber, minute);
       console.timeEnd('Constraints Data Fetch'); // End fetch timer
   
@@ -725,9 +731,12 @@ export default function DataDisplay() {
       );
   
       lastConstraintsDataRef.current = mergedConstraints;
-      setConstraints(mergedConstraints);
   
-      // Return so you can optionally capture this data in your useEffect
+      // **Only set state if it changed**
+      if (JSON.stringify(constraints) !== JSON.stringify(mergedConstraints)) {
+        setConstraints(mergedConstraints);
+      }
+  
       return mergedConstraints;
     } catch (err) {
       console.error('Error fetching constraints data:', err);
@@ -739,44 +748,44 @@ export default function DataDisplay() {
   };
 
   useEffect(() => {
-    // 1) Define the async function
+    let isInitialLoad = true;
+  
     const loadData = async () => {
-      try {
+      if (isInitialLoad) {
         setIsLoading(true);
         setIsConstraintsLoading(true);
-        setError(null);
-        setGridError(null);
-        setConstraintsError(null);
+      }
   
-        // Fetch & merge constraints
+      setError(null);
+      setGridError(null);
+      setConstraintsError(null);
+  
+      try {
         const constraintsData = await fetchAndUpdateConstraints();
         setConstraints(constraintsData);
   
-        // Fetch & merge ledger
         await fetchAndUpdateLedger();
-  
-        // Fetch & merge grid
         await fetchAndUpdateGrid();
-  
       } catch (err) {
         setError('Failed to load data. Please try again later.');
         console.error('Error loading data:', err);
       } finally {
-        setIsLoading(false);
-        setIsConstraintsLoading(false);
+        if (isInitialLoad) {
+          setIsLoading(false);
+          setIsConstraintsLoading(false);
+          isInitialLoad = false;
+        }
       }
     };
   
-    // 2) Call loadData immediately on mount / dependency change
+    // Initial load
     loadData();
   
-    // 3) Set up polling every 5 seconds
-    const intervalId = setInterval(loadData, 5000);
+    // Poll every 15 seconds
+    const intervalId = setInterval(loadData, 15000);
   
-    // 4) Cleanup the interval on unmount or when dependencies change
-    return () => {
-      clearInterval(intervalId);
-    };
+    // Cleanup
+    return () => clearInterval(intervalId);
   }, [selectedHub, gridDate]);
 
   const filteredGrid = useMemo(() => {
