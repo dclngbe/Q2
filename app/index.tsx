@@ -519,6 +519,9 @@ export default function DataDisplay() {
   const lastTimestampRef = useRef<string | null>(null);
   const lastConstraintsDataRef = useRef<Constraint[] | null>(null);
   const lastLedgerDataRef = useRef<LedgerItem[] | null>(null);
+  const lastSelectedHubRef = useRef<string | null>(null);
+  const lastGridDateRef = useRef<Date | null>(null);
+
 
   const gridColumns = ['RT', 'DA', 'Combo', 'DA/RT'];
   const hubOptions = ['Western Hub', 'AD Hub', 'WH - AD Spread'];
@@ -777,9 +780,9 @@ export default function DataDisplay() {
           })
         : grid.filter((row) => parseInt(row.HE) === parseInt(selectedInterval));
   
-    // Ensure every row conforms to `GridItem` type
-    const rows = filtered.map((row) => ({
-      HE: row.HE ?? '1', // Ensure HE is always set
+    // Ensure all necessary fields exist for each row
+    const rows: GridItem[] = filtered.map((row) => ({
+      HE: row.HE ?? '1', // Ensure HE is always defined
       '0': row['0'] ?? null,
       '5': row['5'] ?? null,
       '10': row['10'] ?? null,
@@ -795,15 +798,39 @@ export default function DataDisplay() {
       RT: row.RT ?? null,
       DA: row.DA ?? null,
       'DA/RT': row['DA/RT'] ?? null,
-      Combo: row.RT !== null ? row.RT : row.DA, // Keeps original logic
-    })) as GridItem[];
+      Combo: row.RT !== null ? row.RT : row.DA,
+    }));
   
-    // Compute averages for the last row
-    const averages = gridColumns.reduce((acc, col) => {
+    // Compute averages for each column
+    // Explicitly declare the type of `averages`
+    const averages: GridItem = {
+      HE: 'Avg',
+      '0': null,
+      '5': null,
+      '10': null,
+      '15': null,
+      '20': null,
+      '25': null,
+      '30': null,
+      '35': null,
+      '40': null,
+      '45': null,
+      '50': null,
+      '55': null,
+      RT: null,
+      DA: null,
+      'DA/RT': null,
+      Combo: null,
+    };
+
+    // Now TypeScript recognizes this as a valid assignment
+    gridColumns.forEach((col) => {
       const values = rows
         .map((row) => row[col as keyof GridItem])
-        .filter((val) => val !== null) as number[];
-      acc[col] =
+        .filter((val): val is number => val !== null) as number[];
+
+      // Ensure TypeScript infers the correct type
+      (averages[col as keyof GridItem] as number | null) =
         values.length > 0
           ? Number(
               (
@@ -811,10 +838,9 @@ export default function DataDisplay() {
               ).toFixed(2)
             )
           : null;
-      return acc;
-    }, {} as Record<string, number | null>);
+    });
   
-    return [...rows, { HE: 'Avg', ...averages }];
+    return [...rows, averages]; // **Ensure the average row fully conforms to `GridItem`**
   }, [grid, selectedInterval]);
 
   useEffect(() => {
@@ -870,15 +896,28 @@ export default function DataDisplay() {
     const intervalId = setInterval(loadData, 15000);
   
     // Ensure `selectedHE` always defaults to `currentHE` unless manually set
-    if (!selectedHE || !filteredGrid.some((row) => parseInt(row.HE) === selectedHE)) {
-      const latestHE =
-        filteredGrid.length > 0 ? getCurrentHE(filteredGrid as GridItem[]) : 1;
+    if (
+      !selectedHE ||
+      !filteredGrid.some((row) => parseInt(row.HE) === selectedHE) ||
+      selectedHub !== lastSelectedHubRef.current ||
+      gridDate !== lastGridDateRef.current
+    ) {
+      const latestHE = filteredGrid.length > 0 ? getCurrentHE(filteredGrid) : 1;
       setSelectedHE(latestHE);
     }
   
+    // Ensure that prints for `selectedHE` are always visible
+    if (!selectedMinute) {
+      setSelectedMinute(0);
+    }
+  
+    // Track last selected hub & date to detect changes
+    lastSelectedHubRef.current = selectedHub;
+    lastGridDateRef.current = gridDate;
+  
     // Cleanup interval on unmount
     return () => clearInterval(intervalId);
-  }, [selectedHub, gridDate, selectedInterval, filteredGrid]); // Removed dependency on selectedMinute
+  }, [selectedHub, gridDate, selectedInterval, filteredGrid]);
 
 
   const currentHEData = useMemo(() => {
