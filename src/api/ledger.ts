@@ -63,7 +63,7 @@ export async function fetchLedgerData(): Promise<LedgerItem[]> {
     const ledgerItems = Object.entries(mostRecentDispatch.dispatchMap)
       .map(([zone, dispatch]) => ({
         Zone: zone,
-        Dispatch: Number(dispatch.toFixed(2)),
+        Dispatch: Number((dispatch as number).toFixed(2)),
         timestamp: mostRecentDispatch.dispatchTimestamp,
         hourEnding,
         interval
