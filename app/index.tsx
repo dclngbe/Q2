@@ -739,6 +739,7 @@ export default function DataDisplay() {
   };
 
   useEffect(() => {
+    // 1) Define the async function
     const loadData = async () => {
       try {
         setIsLoading(true);
@@ -747,16 +748,14 @@ export default function DataDisplay() {
         setGridError(null);
         setConstraintsError(null);
   
-        // 1) Fetch & merge constraints
-        //    If your fetchAndUpdateConstraints function returns merged data,
-        //    you can capture it here and then setConstraints again if needed.
+        // Fetch & merge constraints
         const constraintsData = await fetchAndUpdateConstraints();
         setConstraints(constraintsData);
   
-        // 2) Fetch & merge ledger
+        // Fetch & merge ledger
         await fetchAndUpdateLedger();
   
-        // 3) Fetch & merge grid
+        // Fetch & merge grid
         await fetchAndUpdateGrid();
   
       } catch (err) {
@@ -768,7 +767,16 @@ export default function DataDisplay() {
       }
     };
   
+    // 2) Call loadData immediately on mount / dependency change
     loadData();
+  
+    // 3) Set up polling every 5 seconds
+    const intervalId = setInterval(loadData, 5000);
+  
+    // 4) Cleanup the interval on unmount or when dependencies change
+    return () => {
+      clearInterval(intervalId);
+    };
   }, [selectedHub, gridDate]);
 
   const filteredGrid = useMemo(() => {
