@@ -924,24 +924,46 @@ export default function DataDisplay() {
     const rowToUse = selectedHE
       ? filteredGrid.find((row) => parseInt(row.HE) === selectedHE)
       : filteredGrid.find((row) => parseInt(row.HE) === currentHE);
-
-    if (!rowToUse) return Array(12).fill(null);
-
-    return [
-      rowToUse['0'],
-      rowToUse['5'],
-      rowToUse['10'],
-      rowToUse['15'],
-      rowToUse['20'],
-      rowToUse['25'],
-      rowToUse['30'],
-      rowToUse['35'],
-      rowToUse['40'],
-      rowToUse['45'],
-      rowToUse['50'],
-      rowToUse['55'],
-    ];
-  }, [filteredGrid, currentHE, selectedHE]);
+  
+    // Ensure the interval container still shows the current hour's data,
+    // even if filtering (e.g., Off-Peak) removed it from `filteredGrid`
+    if (!rowToUse) {
+      const fallbackRow = grid.find((row) => parseInt(row.HE) === currentHE);
+      if (fallbackRow) {
+        return [
+          fallbackRow['0'],
+          fallbackRow['5'],
+          fallbackRow['10'],
+          fallbackRow['15'],
+          fallbackRow['20'],
+          fallbackRow['25'],
+          fallbackRow['30'],
+          fallbackRow['35'],
+          fallbackRow['40'],
+          fallbackRow['45'],
+          fallbackRow['50'],
+          fallbackRow['55'],
+        ];
+      }
+    }
+  
+    return rowToUse
+      ? [
+          rowToUse['0'],
+          rowToUse['5'],
+          rowToUse['10'],
+          rowToUse['15'],
+          rowToUse['20'],
+          rowToUse['25'],
+          rowToUse['30'],
+          rowToUse['35'],
+          rowToUse['40'],
+          rowToUse['45'],
+          rowToUse['50'],
+          rowToUse['55'],
+        ]
+      : Array(12).fill(null);
+  }, [filteredGrid, currentHE, selectedHE, grid]);
 
   const renderZoneText = (zone: string, backgroundColor: string) => {
     return (
