@@ -636,18 +636,32 @@ export default function DataDisplay() {
       console.timeEnd('Ledger Data Fetch'); // End fetch timer
   
       if (ledgerData.length > 0 && ledgerData[0].timestamp) {
+        const newTimestamp = ledgerData[0].timestamp;
+  
         // Only update if we have a new timestamp
-        if (ledgerData[0].timestamp !== lastTimestampRef.current) {
-          lastTimestampRef.current = ledgerData[0].timestamp;
+        if (newTimestamp !== lastTimestampRef.current) {
+          lastTimestampRef.current = newTimestamp;
+  
+          // Convert the timestamp to a readable format
+          const timestampDate = new Date(newTimestamp);
+          timestampDate.setHours(timestampDate.getHours() - 2); // Adjust to EST if needed
+  
+          // Update the `lastUpdate` state, which the UI depends on
+          setLastUpdate(
+            timestampDate.toLocaleTimeString('en-US', {
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false,
+              timeZone: 'America/New_York',
+            })
+          );
   
           // 1) Merge with any cached ledger data
           const mergedLedger = mergeLedgerData(lastLedgerDataRef.current, ledgerData);
           lastLedgerDataRef.current = mergedLedger;
   
           // 2) Sort the merged data as before
-          const sortedLedgerData = [...mergedLedger].sort(
-            (a, b) => a.Dispatch - b.Dispatch
-          );
+          const sortedLedgerData = [...mergedLedger].sort((a, b) => a.Dispatch - b.Dispatch);
   
           // 3) **Only set state if it changed**
           if (JSON.stringify(ledger) !== JSON.stringify(sortedLedgerData)) {
@@ -749,6 +763,21 @@ export default function DataDisplay() {
 
   useEffect(() => {
     let isInitialLoad = true;
+  
+    // Set lastUpdate from cache on first render
+    if (lastTimestampRef.current) {
+      const timestampDate = new Date(lastTimestampRef.current);
+      timestampDate.setHours(timestampDate.getHours() - 2); // Adjust to EST
+  
+      setLastUpdate(
+        timestampDate.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+          timeZone: 'America/New_York',
+        })
+      );
+    }
   
     const loadData = async () => {
       if (isInitialLoad) {
