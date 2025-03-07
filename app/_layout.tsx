@@ -32,13 +32,7 @@ export default function RootLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'AA',
-        }}
-      />
-      <Tabs.Screen
-        name="surprise"
-        options={{
-          title: 'Surprise',
+          title: 'Quiver',
         }}
       />
     </Tabs>
